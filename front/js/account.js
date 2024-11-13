@@ -38,17 +38,110 @@ class Account {
 
     async loadAccountData() {
         try {
+ 
             // Load account information
             const account = await this.fetchAccountData();
             this.updateAccountInfo(account);
+ 
+            // console.log(`Chargement des données pour le compte ${this.accountId}...`);
+
+            // // Chargement du compte - Notez le changement d'URL ici
+            // const account = await $.ajax({
+            //     url: `/api/accounts/${this.accountId}`,  // URL pour les infos du compte
+            //     method: 'GET',
+            //     error: (xhr, status, error) => {
+            //         console.error('Erreur lors du chargement du compte:', {
+            //             status: xhr.status,
+            //             statusText: xhr.statusText,
+            //             error: error
+            //         });
+            //     }
+            // });
+
+            // console.log("account : " + account + "success : " + account.success);
+
+            // if (!account || !account.success) {
+            //     throw new Error(account.message || 'Erreur lors du chargement du compte');
+            // }
+
+            // console.log('Données du compte reçues:', account);
+            // this.updateAccountInfo(account.account);
+
+            // Chargement des transactions - Cette URL est correcte
+            console.log('Chargement des transactions...');
+             
+
+            console.log("response : " + response + "success : " + response.success);
+
+            if (!response) {
+                throw new Error(response.message || 'Erreur lors du chargement des transactions');
+            }
+
+            console.log('Transactions reçues:', response.transactions);
+
+            if (Array.isArray(response.transactions)) {
+                this.transactions = response.transactions;
+                console.log(`${this.transactions.length} transactions chargées`);
+                this.filterTransactions();
+            } else {
+                console.error('Format de transactions invalide:', response.transactions);
+                throw new Error('Format de données invalide pour les transactions');
+            }
+ 
 
             // Load all transaction records
             const response = await $.get(`/api/accounts/${this.accountId}/transactions`);
             this.transactions = response.transactions;
             this.filterTransactions(); // Apply initial filter
         } catch (error) {
+ 
             console.error('Error loading account data:', error);
             this.showAlert('danger', 'Erreur lors du chargement des données');
+ 
+            console.error('Erreur lors du chargement des données:', error);
+            this.showAlert('danger',
+                `Erreur lors du chargement des données: ${error.message || 'Erreur inconnue'}`
+            );
+
+            // Réinitialiser les données en cas d'erreur
+            this.transactions = [];
+            this.filterTransactions();
+        } finally {
+            $('#loadingIndicator')?.hide();
+        }
+    }
+
+    // Méthode utilitaire pour l'affichage des alertes
+    showAlert(type, message, duration = 3000) {
+        const alertDiv = $(`
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `);
+
+        $('.container').prepend(alertDiv);
+
+        setTimeout(() => {
+            alertDiv.alert('close');
+        }, duration);
+    }
+
+    // Méthode pour mettre à jour les informations du compte
+    updateAccountInfo(account) {
+        if (!account) {
+            console.error('Tentative de mise à jour avec des données de compte nulles');
+            return;
+        }
+
+        try {
+            $('#accountName').text(account.name || 'Compte sans nom');
+            $('#accountType').text(account.type === 'current' ? 'Compte Courant' : 'Compte Épargne');
+            $('#accountBalance').text((account.balance || 0).toFixed(2));
+            document.title = `${account.name || 'Compte'} - Banque en Ligne`;
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour des informations du compte:', error);
+ 
         }
     }
 
@@ -115,9 +208,11 @@ class Account {
                     <td class="text-${transaction.type === 'deposit' ? 'success' : 'danger'}">
                         ${transaction.type === 'deposit' ? '+' : '-'}${transaction.amount.toFixed(2)} €
                     </td>
-                    <td>${transaction.balance.toFixed(2)} €</td>
+                    
+                    <td>${transaction.balance} €</td>
                 </tr>
             `;
+            // <td>${transaction.balance.toFixed(2)} €</td>
             tbody.append(row);
         });
     }
