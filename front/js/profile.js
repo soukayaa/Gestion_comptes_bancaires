@@ -29,9 +29,7 @@ class Profile {
     async loadProfileData() {
         try {
             const response = await $.get('/api/profile');
-            if (response.success) {
-                this.updateProfileUI(response.user);
-            }
+            this.updateProfileUI(response.user);
         } catch (error) {
             console.error('Error loading profile:', error);
             this.showAlert('danger', 'Erreur lors du chargement du profil');
@@ -74,17 +72,17 @@ class Profile {
 
         try {
             const response = await $.ajax({
-                url: '/api/profile/update',
-                method: 'POST',
+                url: '/api/profile',
+                method: 'PUT',
                 contentType: 'application/json',
                 data: JSON.stringify(formData)
             });
 
-            if (response.success) {
-                this.showAlert('success', 'Profil mis à jour avec succès');
-                $('#currentPassword, #newPassword, #confirmPassword').val('');
-                $('#changePasswordSection').collapse('hide');
-            }
+
+            // success
+            this.showAlert('success', 'Profil mis à jour avec succès');
+            $('#currentPassword, #newPassword, #confirmPassword').val('');
+            $('#changePasswordSection').collapse('hide');
         } catch (error) {
             console.error('Error updating profile:', error);
             this.showAlert('danger', error.responseJSON?.message || 'Erreur lors de la mise à jour du profil');
