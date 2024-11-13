@@ -410,12 +410,10 @@ async function downloadTransactionHistory(req, res) {
   const accountId = parseInt(req.params.accountId, 10);
 
   if (!userId) {
-    return res
-      .status(401)
-      .json({
-        error:
-          "Veuillez vous connecter pour télécharger l'historique des transactions",
-      });
+    return res.status(401).json({
+      error:
+        "Veuillez vous connecter pour télécharger l'historique des transactions",
+    });
   }
 
   try {
@@ -478,11 +476,9 @@ async function downloadTransactionHistory(req, res) {
       "Erreur lors du téléchargement de l'historique des transactions:",
       error
     );
-    res
-      .status(500)
-      .json({
-        error: "Une erreur est survenue lors du téléchargement du fichier CSV",
-      });
+    res.status(500).json({
+      error: "Une erreur est survenue lors du téléchargement du fichier CSV",
+    });
   }
 }
 
@@ -521,76 +517,108 @@ async function getUserProfile(req, res) {
 }
 
 async function updateUserProfile(req, res) {
-  try {
-    const userId = req.user.id;
-    const { name, email } = req.body;
+  const userId = req.session.userId;
+  const { name, email } = req.body;
 
-    const user = await User.findById(userId);
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ error: "Veuillez vous connecter pour modifier votre profil" });
+  }
+
+  try {
+    // Vérifier si l'utilisateur existe dans la base de données
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
 
     if (!user) {
       return res.status(404).json({ error: "Utilisateur non trouvé" });
     }
 
-    // Mise à jour des champs autorisés
-    user.name = name || user.name;
-    user.email = email || user.email;
-    await user.save();
+    // Mettre à jour les informations de l'utilisateur avec les nouvelles données
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: name || user.name, // Garde l'ancien nom si aucun nouveau nom n'est fourni
+        email: email || user.email, // Garde l'ancien email si aucun nouvel email n'est fourni
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
 
-    res.json({ message: "Profil mis à jour avec succès" });
+    res.status(200).json({
+      message: "Profil mis à jour avec succès",
+      user: updatedUser,
+    });
   } catch (error) {
-    console.error("Erreur lors de la mise à jour du profil:", error);
-    res
-      .status(500)
-      .json({ error: "Erreur lors de la mise à jour du profil utilisateur" });
+    console.error(error);
+    res.status(500).json({
+      error:
+        "Une erreur est survenue lors de la mise à jour du profil utilisateur",
+    });
   }
 }
-async function deleteBankAccount   (req, res)   {
+async function deleteBankAccount(req, res) {
   const userId = req.session.userId;
   const accountId = parseInt(req.params.accountId, 10); // Récupérer l'ID du compte à supprimer
 
   // Vérification que l'utilisateur est authentifié
   if (!userId) {
-      return res.status(401).json({ error: "Veuillez vous connecter pour supprimer un compte bancaire" });
+    return res
+      .status(401)
+      .json({
+        error: "Veuillez vous connecter pour supprimer un compte bancaire",
+      });
   }
 
   try {
-      // Vérifier que le compte appartient à l'utilisateur
-      const account = await prisma.account.findUnique({
-          where: { id: accountId },
-      });
+    // Vérifier que le compte appartient à l'utilisateur
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
+    });
 
-      if (!account || account.userId !== userId) {
-          return res.status(404).json({ error: "Compte bancaire non trouvé ou vous n'y avez pas accès" });
-      }
+    if (!account || account.userId !== userId) {
+      return res
+        .status(404)
+        .json({
+          error: "Compte bancaire non trouvé ou vous n'y avez pas accès",
+        });
+    }
 
-      // Supprimer toutes les transactions associées à ce compte
-      await prisma.transaction.deleteMany({
-          where: { accountId: accountId },
-      });
+    // Supprimer toutes les transactions associées à ce compte
+    await prisma.transaction.deleteMany({
+      where: { accountId: accountId },
+    });
 
-      // Supprimer le compte bancaire
-      await prisma.account.delete({
-          where: { id: accountId },
-      });
+    // Supprimer le compte bancaire
+    await prisma.account.delete({
+      where: { id: accountId },
+    });
 
-      // Calculer le nouveau solde total de l'utilisateur
-      const totalBalance = await prisma.account.aggregate({
-          where: { userId: userId },
-          _sum: { balance: true },
-      });
+    // Calculer le nouveau solde total de l'utilisateur
+    const totalBalance = await prisma.account.aggregate({
+      where: { userId: userId },
+      _sum: { balance: true },
+    });
 
-      // Répondre avec un message de succès et le solde mis à jour
-      res.status(200).json({
-          message: "Compte bancaire supprimé avec succès. L'historique des transactions a été effacé.",
-          totalBalance: totalBalance._sum.balance || 0,
-      });
+    // Répondre avec un message de succès et le solde mis à jour
+    res.status(200).json({
+      message:
+        "Compte bancaire supprimé avec succès. L'historique des transactions a été effacé.",
+      totalBalance: totalBalance._sum.balance || 0,
+    });
   } catch (error) {
-      console.error("Erreur lors de la suppression du compte bancaire:", error);
-      res.status(500).json({
-          error: "Une erreur est survenue lors de la suppression du compte bancaire",
-      });
+    console.error("Erreur lors de la suppression du compte bancaire:", error);
+    res.status(500).json({
+      error:
+        "Une erreur est survenue lors de la suppression du compte bancaire",
+    });
   }
-};
+}
 
 module.exports = {
   signup,
