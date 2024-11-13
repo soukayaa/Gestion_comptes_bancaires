@@ -1,6 +1,18 @@
 // routes/userRoutes.js
 const express = require("express");
-const { signup, login, logout,getAccounts,addAccount,getTransactions,addTransaction,getTransactionHistory } = require("../controllers/userController");
+const {
+  signup,
+  login,
+  logout,
+  getAccounts,
+  addAccount,
+  getTransactions,
+  addTransaction,
+  getTransactionHistory,
+  getUserProfile,
+  updateUserProfile,
+  deleteBankAccount,
+} = require("../controllers/userController");
 const { signupValidation } = require("../middlewares/validation");
 const sessionMiddleware = require("../middlewares/sessionMiddleware");
 
@@ -20,9 +32,14 @@ router.get("/accounts", getAccounts);
 router.post("/accounts/:accountId/transactions", addTransaction);
 router.get("/accounts/:accountId/transactions", getTransactions);
 
-
 // Route pour récupérer l'historique des transactions d'un compte avec filtres
 router.get("/accounts/:accountId/transactions/history", getTransactionHistory);
 
+router.get("/profile", getUserProfile);
+
+// Route pour mettre à jour le profil utilisateur
+router.put("/profile", updateUserProfile);
+
+router.delete("/account/:accountId", deleteBankAccount);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 // controllers/userController.js
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcrypt");
+const { createObjectCsvStringifier } = require("csv-writer");
 
 const prisma = new PrismaClient();
 
@@ -48,12 +49,10 @@ async function login(req, res) {
     req.session.userId = user.id;
     req.session.userEmail = user.email;
 
-    res
-      .status(200)
-      .json({
-        message: "Login successful",
-        user: { id: user.id, email: user.email },
-      });
+    res.status(200).json({
+      message: "Login successful",
+      user: { id: user.id, email: user.email },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "An error occurred during login" });
@@ -93,11 +92,9 @@ async function getAccounts(req, res) {
     res.status(200).json({ accounts });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({
-        error: "Une erreur est survenue lors de la récupération des comptes",
-      });
+    res.status(500).json({
+      error: "Une erreur est survenue lors de la récupération des comptes",
+    });
   }
 }
 // Fonction pour obtenir les transactions d'un compte spécifique
@@ -106,7 +103,9 @@ async function getTransactions(req, res) {
   const accountId = req.params.accountId;
 
   if (!userId) {
-    return res.status(401).json({ error: "Veuillez vous connecter pour voir les transactions" });
+    return res
+      .status(401)
+      .json({ error: "Veuillez vous connecter pour voir les transactions" });
   }
 
   try {
@@ -136,10 +135,11 @@ async function getTransactions(req, res) {
     res.status(200).json({ transactions });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Une erreur est survenue lors de la récupération des transactions" });
+    res.status(500).json({
+      error: "Une erreur est survenue lors de la récupération des transactions",
+    });
   }
 }
-
 
 // Fonction pour ajouter un compte bancaire
 async function addAccount(req, res) {
@@ -147,11 +147,9 @@ async function addAccount(req, res) {
   const { name, type } = req.body; // Récupérer les données du formulaire
 
   if (!userId) {
-    return res
-      .status(401)
-      .json({
-        error: "Veuillez vous connecter pour ajouter un compte bancaire",
-      });
+    return res.status(401).json({
+      error: "Veuillez vous connecter pour ajouter un compte bancaire",
+    });
   }
 
   try {
@@ -180,8 +178,8 @@ async function addAccount(req, res) {
 // Fonction pour ajouter une transaction
 async function addTransaction(req, res) {
   const userId = req.session.userId;
+  const accountId = parseInt(req.params.accountId, 10); // Récupère accountId depuis l'URL
   const { type, amount, date } = req.body;
-  const accountId = parseInt(req.params.accountId, 10); // Récupérer accountId depuis l'URL
 
   if (!userId) {
     return res
@@ -196,7 +194,7 @@ async function addTransaction(req, res) {
   }
 
   try {
-    // Récupérer le compte pour vérifier son solde et le propriétaire
+    // Récupérer le compte pour vérifier son solde et le seuil de solde bas
     const account = await prisma.account.findFirst({
       where: { id: accountId, userId: userId },
     });
@@ -205,7 +203,6 @@ async function addTransaction(req, res) {
       return res.status(404).json({ error: "Compte non trouvé" });
     }
 
-    // Vérifier si le retrait est possible sans solde négatif
     if (type === "retrait" && account.balance < amount) {
       return res
         .status(400)
@@ -229,33 +226,41 @@ async function addTransaction(req, res) {
       data: { balance: newBalance },
     });
 
+    // Vérifier si le solde est en dessous du seuil après la transaction
+    let notificationMessage = null;
+    if (
+      account.lowBalanceThreshold !== null &&
+      newBalance < account.lowBalanceThreshold
+    ) {
+      notificationMessage = `Attention: le solde de votre compte est en dessous du seuil de ${account.lowBalanceThreshold}`;
+    }
+
     res.status(201).json({
       message: "Transaction ajoutée avec succès",
       transaction: transaction,
       newBalance: newBalance,
+      notification: notificationMessage,
     });
   } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({
-        error: "Une erreur est survenue lors de l'ajout de la transaction",
-      });
+    console.error("Erreur lors de l'ajout de la transaction:", error);
+    res.status(500).json({
+      error: "Une erreur est survenue lors de l'ajout de la transaction",
+    });
   }
 }
 
 async function getTransactionHistory(req, res) {
   const userId = req.session.userId;
   const accountId = parseInt(req.params.accountId, 10);
-  const { type, startDate, endDate } = req.query; // Récupération des filtres de la requête
+  const { type, startDate, endDate, period } = req.query;
 
-  // Vérification de l'utilisateur connecté
   if (!userId) {
-    return res.status(401).json({ error: "Veuillez vous connecter pour voir les transactions" });
+    return res
+      .status(401)
+      .json({ error: "Veuillez vous connecter pour voir les transactions" });
   }
 
   try {
-    // Vérification de l'existence du compte et du propriétaire
     const account = await prisma.account.findFirst({
       where: { id: accountId, userId: userId },
     });
@@ -264,18 +269,38 @@ async function getTransactionHistory(req, res) {
       return res.status(404).json({ error: "Compte non trouvé" });
     }
 
-    // Préparation des filtres pour les transactions
     let transactionFilters = { accountId: accountId };
 
     if (type) {
       transactionFilters.type = type;
     }
 
-    if (startDate && endDate) {
-      transactionFilters.date = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
-      };
+    // Gestion du filtrage par date
+    transactionFilters.date = {};
+
+    // Priorité au filtrage par période si "period" est spécifié
+    if (period) {
+      const days = parseInt(period, 10);
+      if (!isNaN(days) && days > 0) {
+        const startPeriodDate = new Date();
+        startPeriodDate.setDate(startPeriodDate.getDate() - days);
+        transactionFilters.date.gte = startPeriodDate;
+      }
+    } else {
+      // Sinon, appliquer les filtres "startDate" et "endDate" si présents
+      if (startDate) {
+        const start = new Date(startDate);
+        if (!isNaN(start)) {
+          transactionFilters.date.gte = start;
+        }
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+        if (!isNaN(end)) {
+          transactionFilters.date.lte = end;
+        }
+      }
     }
 
     // Récupérer les transactions avec les filtres appliqués
@@ -288,22 +313,284 @@ async function getTransactionHistory(req, res) {
         amount: true,
       },
       orderBy: {
-        date: 'desc', // Trie les transactions par date (les plus récentes en premier)
+        date: "desc",
       },
     });
 
     if (transactions.length === 0) {
-      return res.status(404).json({ message: "Aucune transaction trouvée pour les critères spécifiés" });
+      return res.status(404).json({
+        message: "Aucune transaction trouvée pour les critères spécifiés",
+      });
     }
 
     res.status(200).json({ transactions });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Une erreur est survenue lors de la récupération des transactions" });
+    console.error("Erreur lors de la récupération des transactions:", error);
+    res.status(500).json({
+      error: "Une erreur est survenue lors de la récupération des transactions",
+    });
   }
 }
 
- 
+async function getTotalBalance(req, res) {
+  const userId = req.session.userId;
+
+  // Vérification de l'utilisateur connecté
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ error: "Veuillez vous connecter pour voir le solde total" });
+  }
+
+  try {
+    // Récupérer tous les comptes de l'utilisateur
+    const accounts = await prisma.account.findMany({
+      where: { userId: userId },
+      select: {
+        balance: true,
+      },
+    });
+
+    // Calculer le solde total
+    const totalBalance = accounts.reduce(
+      (sum, account) => sum + account.balance,
+      0
+    );
+
+    res.status(200).json({ totalBalance });
+  } catch (error) {
+    console.error("Erreur lors de la récupération du solde total:", error);
+    res.status(500).json({
+      error: "Une erreur est survenue lors de la récupération du solde total",
+    });
+  }
+}
+async function updateThreshold(req, res) {
+  const userId = req.session.userId;
+  const accountId = parseInt(req.params.accountId, 10); // Récupère l'ID du compte depuis les paramètres de l'URL
+  const { lowBalanceThreshold } = req.body;
+
+  if (!userId) {
+    return res.status(401).json({
+      error: "Veuillez vous connecter pour définir un seuil de solde bas",
+    });
+  }
+
+  try {
+    // Vérifier que le compte appartient à l'utilisateur
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId: userId },
+    });
+
+    if (!account) {
+      return res.status(404).json({ error: "Compte non trouvé" });
+    }
+
+    // Mettre à jour le seuil de solde bas pour ce compte
+    await prisma.account.update({
+      where: { id: accountId },
+      data: { lowBalanceThreshold },
+    });
+
+    res
+      .status(200)
+      .json({ message: "Seuil de solde bas mis à jour avec succès" });
+  } catch (error) {
+    console.error(
+      "Erreur lors de la mise à jour du seuil de solde bas:",
+      error
+    );
+    res.status(500).json({
+      error: "Une erreur est survenue lors de la mise à jour du seuil",
+    });
+  }
+}
+async function downloadTransactionHistory(req, res) {
+  const userId = req.session.userId;
+  const accountId = parseInt(req.params.accountId, 10);
+
+  if (!userId) {
+    return res
+      .status(401)
+      .json({
+        error:
+          "Veuillez vous connecter pour télécharger l'historique des transactions",
+      });
+  }
+
+  try {
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId: userId },
+    });
+
+    if (!account) {
+      return res.status(404).json({ error: "Compte non trouvé" });
+    }
+
+    const transactions = await prisma.transaction.findMany({
+      where: { accountId: accountId },
+      select: {
+        date: true,
+        type: true,
+        amount: true,
+        Account: { select: { balance: true } },
+      },
+      orderBy: {
+        date: "desc",
+      },
+    });
+
+    if (transactions.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Aucune transaction trouvée pour ce compte" });
+    }
+
+    const csvStringifier = createObjectCsvStringifier({
+      header: [
+        { id: "date", title: "Date" },
+        { id: "type", title: "Type" },
+        { id: "amount", title: "Montant" },
+        { id: "balance", title: "Solde" },
+      ],
+    });
+
+    const records = transactions.map((transaction) => ({
+      date: transaction.date.toISOString(),
+      type: transaction.type,
+      amount: transaction.amount,
+      balance: transaction.Account.balance,
+    }));
+
+    const csv =
+      csvStringifier.getHeaderString() +
+      csvStringifier.stringifyRecords(records);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="transactions_account_${accountId}.csv"`
+    );
+
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error(
+      "Erreur lors du téléchargement de l'historique des transactions:",
+      error
+    );
+    res
+      .status(500)
+      .json({
+        error: "Une erreur est survenue lors du téléchargement du fichier CSV",
+      });
+  }
+}
+
+async function getUserProfile(req, res) {
+  const userId = req.session.userId;
+
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ error: "Veuillez vous connecter pour accéder au profil" });
+  }
+
+  try {
+    // Récupérer l'utilisateur par ID
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    }
+
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error:
+        "Une erreur est survenue lors de la récupération du profil utilisateur",
+    });
+  }
+}
+
+async function updateUserProfile(req, res) {
+  try {
+    const userId = req.user.id;
+    const { name, email } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    }
+
+    // Mise à jour des champs autorisés
+    user.name = name || user.name;
+    user.email = email || user.email;
+    await user.save();
+
+    res.json({ message: "Profil mis à jour avec succès" });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour du profil:", error);
+    res
+      .status(500)
+      .json({ error: "Erreur lors de la mise à jour du profil utilisateur" });
+  }
+}
+async function deleteBankAccount   (req, res)   {
+  const userId = req.session.userId;
+  const accountId = parseInt(req.params.accountId, 10); // Récupérer l'ID du compte à supprimer
+
+  // Vérification que l'utilisateur est authentifié
+  if (!userId) {
+      return res.status(401).json({ error: "Veuillez vous connecter pour supprimer un compte bancaire" });
+  }
+
+  try {
+      // Vérifier que le compte appartient à l'utilisateur
+      const account = await prisma.account.findUnique({
+          where: { id: accountId },
+      });
+
+      if (!account || account.userId !== userId) {
+          return res.status(404).json({ error: "Compte bancaire non trouvé ou vous n'y avez pas accès" });
+      }
+
+      // Supprimer toutes les transactions associées à ce compte
+      await prisma.transaction.deleteMany({
+          where: { accountId: accountId },
+      });
+
+      // Supprimer le compte bancaire
+      await prisma.account.delete({
+          where: { id: accountId },
+      });
+
+      // Calculer le nouveau solde total de l'utilisateur
+      const totalBalance = await prisma.account.aggregate({
+          where: { userId: userId },
+          _sum: { balance: true },
+      });
+
+      // Répondre avec un message de succès et le solde mis à jour
+      res.status(200).json({
+          message: "Compte bancaire supprimé avec succès. L'historique des transactions a été effacé.",
+          totalBalance: totalBalance._sum.balance || 0,
+      });
+  } catch (error) {
+      console.error("Erreur lors de la suppression du compte bancaire:", error);
+      res.status(500).json({
+          error: "Une erreur est survenue lors de la suppression du compte bancaire",
+      });
+  }
+};
 
 module.exports = {
   signup,
@@ -314,4 +601,10 @@ module.exports = {
   addAccount,
   addTransaction,
   getTransactionHistory,
+  getTotalBalance,
+  updateThreshold,
+  downloadTransactionHistory,
+  getUserProfile,
+  updateUserProfile,
+  deleteBankAccount,
 };

@@ -7,7 +7,6 @@
     <title>Tableau de Bord - Banque en Ligne</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
     <script src="/front/js/layout.js"></script>
@@ -17,10 +16,35 @@
 
 <body class="bg-light">
 
-    <div id="navbarContainer"></div>
+    <!-- Barre de navigation -->
+    <div id="navbarContainer">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="/dashboard">Banque en Ligne</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/dashboard" data-nav="dashboard">Tableau de bord</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/profile" data-nav="profile">Profil</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/transactions" data-nav="transactions">Transactions</a>
+                        </li>
+                    </ul>
+                    <button id="logoutBtn" class="btn btn-light">Déconnexion</button>
+                </div>
+            </div>
+        </nav>
+    </div>
 
+    <!-- Contenu principal -->
     <div class="container mt-4">
-        <!-- Welcome message and total balance -->
+        <!-- Message de bienvenue et solde total -->
         <div class="row mb-4">
             <div class="col-md-6">
                 <h2>Bienvenue, <span id="userName">...</span></h2>
@@ -30,7 +54,7 @@
             </div>
         </div>
 
-        <!-- account list -->
+        <!-- Liste des comptes -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -42,7 +66,7 @@
                     </div>
                     <div class="card-body">
                         <div class="row" id="accountsList">
-                            <!-- Account cards will be dynamically added via JavaScript -->
+                            <!-- Les cartes des comptes seront ajoutées dynamiquement via JavaScript -->
                         </div>
                     </div>
                 </div>
@@ -50,7 +74,7 @@
         </div>
     </div>
 
-    <!-- Add account modal -->
+    <!-- Modal d'ajout de compte -->
     <div class="modal fade" id="addAccountModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -80,6 +104,7 @@
             </div>
         </div>
     </div>
+
 </body>
 
 </html>
