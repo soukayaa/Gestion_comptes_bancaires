@@ -35,13 +35,10 @@ app.get('/account/:id', (req, res) => {
     res.sendFile(path.join(__dirname, 'front/pages/account.html'));
 });
 
-app.get('/profil', (req, res) => {
-    res.sendFile(path.join(__dirname, 'front/pages/profil.html'));
+app.get('/profile', (req, res) => {
+    res.sendFile(path.join(__dirname, 'front/pages/profile.html'));
 });
 
-app.get('/components/navbar', (req, res) => {
-    res.sendFile(path.join(__dirname, 'front/components/navbar.html'));
-});
 
 // API Routing
 // app.use('/api/user', userRoutes);

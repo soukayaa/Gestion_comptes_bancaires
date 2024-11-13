@@ -8,7 +8,7 @@ class Navbar {
     initLogout() {
         $(document).on('click', '#logoutBtn', function () {
             $.ajax({
-                url: '/api/auth/logout',
+                url: '/api/logout',
                 method: 'POST',
                 success: function () {
                     window.location.href = '/login';

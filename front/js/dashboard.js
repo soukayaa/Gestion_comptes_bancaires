@@ -111,10 +111,10 @@ class Dashboard {
 
 // initialize dashboard
 $(document).ready(() => {
-    $("#navbarContainer").load("../components/navbar.html", function () {
-        // 导航栏加载完成后初始化
-        window.navbar = new Navbar();
-    });
+    // $("#navbarContainer").load("../components/navbar.html", function () {
+    //     
+    //     window.navbar = new Navbar();
+    // });
 
     new Dashboard();
 });
