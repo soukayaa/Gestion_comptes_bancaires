@@ -39,32 +39,34 @@ class Account {
 
     async loadAccountData() {
         try {
-            console.log(`Chargement des données pour le compte ${this.accountId}...`);
+            // console.log(`Chargement des données pour le compte ${this.accountId}...`);
 
-            // Chargement du compte
-            const account = await $.ajax({
-                url: `/api/accounts/${this.accountId}/transactions`,
-                method: 'GET',
-                error: (xhr, status, error) => {
-                    console.error('Erreur lors du chargement du compte:', {
-                        status: xhr.status,
-                        statusText: xhr.statusText,
-                        error: error
-                    });
-                }
-            });
+            // // Chargement du compte - Notez le changement d'URL ici
+            // const account = await $.ajax({
+            //     url: `/api/accounts/${this.accountId}`,  // URL pour les infos du compte
+            //     method: 'GET',
+            //     error: (xhr, status, error) => {
+            //         console.error('Erreur lors du chargement du compte:', {
+            //             status: xhr.status,
+            //             statusText: xhr.statusText,
+            //             error: error
+            //         });
+            //     }
+            // });
 
-            if (!account || !account.success) {
-                throw new Error(account.message || 'Erreur lors du chargement du compte');
-            }
+            // console.log("account : " + account + "success : " + account.success);
 
-            console.log('Données du compte reçues:', account);
-            this.updateAccountInfo(account.account);
+            // if (!account || !account.success) {
+            //     throw new Error(account.message || 'Erreur lors du chargement du compte');
+            // }
 
-            // Chargement des transactions
+            // console.log('Données du compte reçues:', account);
+            // this.updateAccountInfo(account.account);
+
+            // Chargement des transactions - Cette URL est correcte
             console.log('Chargement des transactions...');
             const response = await $.ajax({
-                url: `/api/accounts/${this.accountId}/transactions`,
+                url: `/api/accounts/${this.accountId}/transactions`,  // URL pour les transactions
                 method: 'GET',
                 error: (xhr, status, error) => {
                     console.error('Erreur lors du chargement des transactions:', {
@@ -75,7 +77,9 @@ class Account {
                 }
             });
 
-            if (!response || !response.success) {
+            console.log("response : " + response + "success : " + response.success);
+
+            if (!response) {
                 throw new Error(response.message || 'Erreur lors du chargement des transactions');
             }
 
@@ -100,8 +104,6 @@ class Account {
             this.transactions = [];
             this.filterTransactions();
         } finally {
-            // Vous pouvez ajouter ici du code qui doit s'exécuter dans tous les cas
-            // Par exemple, masquer un indicateur de chargement
             $('#loadingIndicator')?.hide();
         }
     }
@@ -205,9 +207,11 @@ class Account {
                     <td class="text-${transaction.type === 'deposit' ? 'success' : 'danger'}">
                         ${transaction.type === 'deposit' ? '+' : '-'}${transaction.amount.toFixed(2)} €
                     </td>
-                    <td>${transaction.balance.toFixed(2)} €</td>
+                    
+                    <td>${transaction.balance} €</td>
                 </tr>
             `;
+            // <td>${transaction.balance.toFixed(2)} €</td>
             tbody.append(row);
         });
     }
