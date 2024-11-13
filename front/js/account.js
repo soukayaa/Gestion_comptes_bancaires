@@ -38,11 +38,11 @@ class Account {
 
     async loadAccountData() {
         try {
- 
+
             // Load account information
-            const account = await this.fetchAccountData();
-            this.updateAccountInfo(account);
- 
+            // const account = await this.fetchAccountData();
+            // this.updateAccountInfo(account);
+
             // console.log(`Chargement des données pour le compte ${this.accountId}...`);
 
             // // Chargement du compte - Notez le changement d'URL ici
@@ -69,7 +69,18 @@ class Account {
 
             // Chargement des transactions - Cette URL est correcte
             console.log('Chargement des transactions...');
-             
+            const response = await $.ajax({
+                url: `/api/accounts/${this.accountId}/transactions`,
+                method: 'GET',
+                error: (xhr, status, error) => {
+                    console.error('Erreur lors du chargement des transactions:', {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        error: error
+                    });
+                }
+            });
+
 
             console.log("response : " + response + "success : " + response.success);
 
@@ -87,17 +98,14 @@ class Account {
                 console.error('Format de transactions invalide:', response.transactions);
                 throw new Error('Format de données invalide pour les transactions');
             }
- 
 
-            // Load all transaction records
-            const response = await $.get(`/api/accounts/${this.accountId}/transactions`);
             this.transactions = response.transactions;
             this.filterTransactions(); // Apply initial filter
         } catch (error) {
- 
+
             console.error('Error loading account data:', error);
             this.showAlert('danger', 'Erreur lors du chargement des données');
- 
+
             console.error('Erreur lors du chargement des données:', error);
             this.showAlert('danger',
                 `Erreur lors du chargement des données: ${error.message || 'Erreur inconnue'}`
@@ -141,7 +149,7 @@ class Account {
             document.title = `${account.name || 'Compte'} - Banque en Ligne`;
         } catch (error) {
             console.error('Erreur lors de la mise à jour des informations du compte:', error);
- 
+
         }
     }
 
@@ -324,7 +332,7 @@ class Account {
 
         try {
             await $.ajax({
-                url: `/api/accounts/${this.accountId}/alert`,
+                url: `/api/accounts/${this.accountId}/threshold`,
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ threshold: amount })
