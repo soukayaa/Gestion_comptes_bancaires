@@ -28,7 +28,7 @@ class Profile {
     // Personal Information Related Methods
     async loadProfileData() {
         try {
-            const response = await $.get('/api/user/profile');
+            const response = await $.get('/api/profile');
             if (response.success) {
                 this.updateProfileUI(response.user);
             }
@@ -74,7 +74,7 @@ class Profile {
 
         try {
             const response = await $.ajax({
-                url: '/api/user/profile/update',
+                url: '/api/profile/update',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify(formData)

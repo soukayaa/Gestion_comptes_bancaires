@@ -39,7 +39,7 @@ class Dashboard {
     }
 
     async fetchUserData() {
-        const response = await $.get('/api/user/profile');
+        const response = await $.get('/api/profile');
         return response.user;
     }
 
@@ -111,5 +111,10 @@ class Dashboard {
 
 // initialize dashboard
 $(document).ready(() => {
+    $("#navbarContainer").load("../components/navbar.html", function () {
+        // 导航栏加载完成后初始化
+        window.navbar = new Navbar();
+    });
+
     new Dashboard();
 });

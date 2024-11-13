@@ -30,18 +30,16 @@ $(document).ready(function () {
         };
 
         $.ajax({
-            url: '/api/auth/register',
+            url: '/api/signup',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify(registerData),
             success: function (response) {
-                if (response.success) {
-                    $('#errorAlert').hide();
-                    $('#successAlert').text('Compte créé avec succès ! Redirection...').show();
-                    setTimeout(() => {
-                        window.location.href = '/login';
-                    }, 2000);
-                }
+                $('#errorAlert').hide();
+                $('#successAlert').text('Compte créé avec succès ! Redirection...').show();
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 2000);
             },
             error: function (xhr) {
                 const errorMessage = xhr.responseJSON?.message || 'Une erreur est survenue';

@@ -39,8 +39,13 @@ app.get('/profil', (req, res) => {
     res.sendFile(path.join(__dirname, 'front/pages/profil.html'));
 });
 
+app.get('/components/navbar', (req, res) => {
+    res.sendFile(path.join(__dirname, 'front/components/navbar.html'));
+});
+
 // API Routing
-app.use('/api/user', userRoutes);
+// app.use('/api/user', userRoutes);
+app.use('/api', userRoutes);
 
 app.get('/api/accounts', (req, res) => {
     // Logic to handle getting the list of accounts
@@ -57,7 +62,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start the server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
