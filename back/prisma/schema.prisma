@@ -10,46 +10,46 @@ datasource db {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  name          String
-  email         String         @unique
-  password      String
-  accounts      Account[]
-  loginHistory  LoginHistory[] // Add this line to create a relation to LoginHistory
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id           Int            @id @default(autoincrement())
+  name         String
+  email        String         @unique
+  password     String
+  accounts     Account[]
+  loginHistory LoginHistory[] // Add this line to create a relation to LoginHistory
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 }
 
 model Account {
-  id           Int         @id @default(autoincrement())
+  id           Int           @id @default(autoincrement())
   userId       Int
   name         String
   type         String
-  balance      Float       @default(0.0)
+  balance      Float         @default(0.0)
   transactions Transaction[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   User User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Transaction {
-  id           Int      @id @default(autoincrement())
-  accountId    Int
-  type         String   // "deposit" ou "withdrawal"
-  amount       Float
-  date         DateTime @default(now())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  accountId Int
+  type      String // "dépôt" ou "retrait"
+  amount    Float
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   Account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 model LoginHistory {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  loginDate   DateTime @default(now())
-  ipAddress   String
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  loginDate DateTime @default(now())
+  ipAddress String
 
   User User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -1,16 +1,14 @@
-const express = require('express');
-const userRoutes = require('./routes/userRoutes');
+// back/app.js
+
+const express = require("express");
+const userRoutes = require("./routes/userRoutes");
 
 const app = express();
+
+// Middleware for parsing JSON
 app.use(express.json());
 
-// Use the user routes for user-related endpoints
-app.use('/api/users', userRoutes);
+// Use the user routes
+app.use("/users", userRoutes);
 
-// Error handling middleware (optional)
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something broke!');
-});
-
-module.exports = app;
+module.exports = app; // Export the app instance
