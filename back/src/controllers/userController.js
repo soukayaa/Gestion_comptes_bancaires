@@ -109,19 +109,17 @@ async function getTransactions(req, res) {
   }
 
   try {
-    // Convertir accountId en entier
     const accountIdInt = parseInt(accountId, 10);
 
-    // Vérifier que le compte appartient à l'utilisateur
     const account = await prisma.account.findFirst({
       where: { id: accountIdInt, userId: userId },
+      select: { id: true, balance: true }, // Ajout de la sélection du solde
     });
 
     if (!account) {
       return res.status(404).json({ error: "Compte non trouvé" });
     }
 
-    // Récupérer les transactions du compte spécifié
     const transactions = await prisma.transaction.findMany({
       where: { accountId: accountIdInt },
       select: {
@@ -132,7 +130,10 @@ async function getTransactions(req, res) {
       },
     });
 
-    res.status(200).json({ transactions });
+    res.status(200).json({
+      balance: account.balance, // Inclusion du solde dans la réponse
+      transactions,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({
@@ -178,7 +179,7 @@ async function addAccount(req, res) {
 // Fonction pour ajouter une transaction
 async function addTransaction(req, res) {
   const userId = req.session.userId;
-  const accountId = parseInt(req.params.accountId, 10); // Récupère accountId depuis l'URL
+  const accountId = parseInt(req.params.accountId, 10);
   const { type, amount, date } = req.body;
 
   if (!userId) {
@@ -194,9 +195,9 @@ async function addTransaction(req, res) {
   }
 
   try {
-    // Récupérer le compte pour vérifier son solde et le seuil de solde bas
     const account = await prisma.account.findFirst({
       where: { id: accountId, userId: userId },
+      select: { id: true, balance: true, lowBalanceThreshold: true },
     });
 
     if (!account) {
@@ -226,7 +227,6 @@ async function addTransaction(req, res) {
       data: { balance: newBalance },
     });
 
-    // Vérifier si le solde est en dessous du seuil après la transaction
     let notificationMessage = null;
     if (
       account.lowBalanceThreshold !== null &&
@@ -568,11 +568,9 @@ async function deleteBankAccount(req, res) {
 
   // Vérification que l'utilisateur est authentifié
   if (!userId) {
-    return res
-      .status(401)
-      .json({
-        error: "Veuillez vous connecter pour supprimer un compte bancaire",
-      });
+    return res.status(401).json({
+      error: "Veuillez vous connecter pour supprimer un compte bancaire",
+    });
   }
 
   try {
@@ -582,11 +580,9 @@ async function deleteBankAccount(req, res) {
     });
 
     if (!account || account.userId !== userId) {
-      return res
-        .status(404)
-        .json({
-          error: "Compte bancaire non trouvé ou vous n'y avez pas accès",
-        });
+      return res.status(404).json({
+        error: "Compte bancaire non trouvé ou vous n'y avez pas accès",
+      });
     }
 
     // Supprimer toutes les transactions associées à ce compte
