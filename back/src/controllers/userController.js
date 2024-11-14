@@ -5,7 +5,7 @@ const { createObjectCsvStringifier } = require("csv-writer");
 
 const prisma = new PrismaClient();
 
-// Signup function
+ 
 async function signup(req, res) {
   const { name, email, password } = req.body;
 
@@ -103,23 +103,23 @@ async function getTransactions(req, res) {
   const accountId = req.params.accountId;
 
   if (!userId) {
-    return res
-      .status(401)
-      .json({ error: "Veuillez vous connecter pour voir les transactions" });
+    return res.status(401).json({ error: "Veuillez vous connecter pour voir les transactions" });
   }
 
   try {
     const accountIdInt = parseInt(accountId, 10);
 
+    // Récupérer le solde actuel du compte
     const account = await prisma.account.findFirst({
       where: { id: accountIdInt, userId: userId },
-      select: { id: true, balance: true }, // Ajout de la sélection du solde
+      select: { id: true, balance: true }, // Sélection du solde du compte
     });
 
     if (!account) {
       return res.status(404).json({ error: "Compte non trouvé" });
     }
 
+    // Récupérer toutes les transactions par ordre chronologique
     const transactions = await prisma.transaction.findMany({
       where: { accountId: accountIdInt },
       select: {
@@ -128,11 +128,28 @@ async function getTransactions(req, res) {
         amount: true,
         date: true,
       },
+      orderBy: { date: 'asc' },
     });
 
+    // Initialiser le solde en partant du solde actuel et calculer à rebours
+    let runningBalance = account.balance;
+    const transactionsWithBalance = transactions.reverse().map((transaction) => {
+      // Calculer le solde pour chaque transaction en remontant
+      runningBalance = transaction.type === 'dépôt' 
+        ? runningBalance - transaction.amount 
+        : runningBalance + transaction.amount;
+
+      // Ajouter le solde mis à jour pour chaque transaction
+      return {
+        ...transaction,
+        balance: runningBalance,
+      };
+    }).reverse(); // Revenir à l'ordre chronologique d'origine
+
+    // Répondre avec le solde actuel et les transactions incluant le solde après chaque transaction
     res.status(200).json({
-      balance: account.balance, // Inclusion du solde dans la réponse
-      transactions,
+      balance: account.balance, // Solde actuel du compte
+      transactions: transactionsWithBalance,
     });
   } catch (error) {
     console.error(error);
@@ -141,6 +158,7 @@ async function getTransactions(req, res) {
     });
   }
 }
+
 
 // Fonction pour ajouter un compte bancaire
 async function addAccount(req, res) {
@@ -183,15 +201,11 @@ async function addTransaction(req, res) {
   const { type, amount, date } = req.body;
 
   if (!userId) {
-    return res
-      .status(401)
-      .json({ error: "Veuillez vous connecter pour ajouter une transaction" });
+    return res.status(401).json({ error: "Veuillez vous connecter pour ajouter une transaction" });
   }
 
   if (!accountId || !type || amount === undefined || amount <= 0) {
-    return res
-      .status(400)
-      .json({ error: "Type de transaction, montant positif et compte requis" });
+    return res.status(400).json({ error: "Type de transaction, montant positif et compte requis" });
   }
 
   try {
@@ -205,14 +219,13 @@ async function addTransaction(req, res) {
     }
 
     if (type === "retrait" && account.balance < amount) {
-      return res
-        .status(400)
-        .json({ error: "Solde insuffisant pour effectuer ce retrait" });
+      return res.status(400).json({ error: "Solde insuffisant pour effectuer ce retrait" });
     }
 
-    const newBalance =
-      type === "dépôt" ? account.balance + amount : account.balance - amount;
+    // Calculer le nouveau solde
+    const newBalance = type === "dépôt" ? account.balance + amount : account.balance - amount;
 
+    // Créer la transaction sans le champ `balance`
     const transaction = await prisma.transaction.create({
       data: {
         accountId: accountId,
@@ -222,32 +235,36 @@ async function addTransaction(req, res) {
       },
     });
 
+    // Mettre à jour le solde du compte
     await prisma.account.update({
       where: { id: accountId },
       data: { balance: newBalance },
     });
 
+    // Vérifier et créer la notification si le solde est en dessous du seuil
     let notificationMessage = null;
-    if (
-      account.lowBalanceThreshold !== null &&
-      newBalance < account.lowBalanceThreshold
-    ) {
+    if (account.lowBalanceThreshold !== null && newBalance < account.lowBalanceThreshold) {
       notificationMessage = `Attention: le solde de votre compte est en dessous du seuil de ${account.lowBalanceThreshold}`;
     }
 
+    // Inclure le solde actuel dans l'objet transaction pour la réponse
     res.status(201).json({
       message: "Transaction ajoutée avec succès",
-      transaction: transaction,
-      newBalance: newBalance,
+      transaction: {
+        ...transaction,
+        balance: newBalance // Ajout du solde après la transaction
+      },
+      newBalance: newBalance, // Inclure le solde mis à jour dans la réponse
       notification: notificationMessage,
     });
   } catch (error) {
     console.error("Erreur lors de l'ajout de la transaction:", error);
-    res.status(500).json({
-      error: "Une erreur est survenue lors de l'ajout de la transaction",
-    });
+    res.status(500).json({ error: "Une erreur est survenue lors de l'ajout de la transaction" });
   }
 }
+
+
+
 
 async function getTransactionHistory(req, res) {
   const userId = req.session.userId;

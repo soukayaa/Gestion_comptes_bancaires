@@ -21,14 +21,15 @@ model User {
 }
 
 model Account {
-  id           Int           @id @default(autoincrement())
-  userId       Int
-  name         String
-  type         String
-  balance      Float         @default(0.0)
-  transactions Transaction[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id                 Int           @id @default(autoincrement())
+  userId             Int
+  name               String
+  type               String
+  balance            Float         @default(0.0)
+  lowBalanceThreshold Float?        // Ajout du seuil de solde bas, optionnel
+  transactions       Transaction[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   User User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
