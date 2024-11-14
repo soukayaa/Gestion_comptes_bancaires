@@ -21,29 +21,29 @@ model User {
 }
 
 model Account {
-  id                 Int           @id @default(autoincrement())
-  userId             Int
-  name               String
-  type               String
-  balance            Float         @default(0.0)
-  lowBalanceThreshold Float?        // Ajout du seuil de solde bas, optionnel
-  transactions       Transaction[]
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                  Int           @id @default(autoincrement())
+  userId              Int
+  name                String
+  type                String
+  balance             Float         @default(0.0)
+  lowBalanceThreshold Float? // Ajout du seuil de solde bas, optionnel
+  transactions        Transaction[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   User User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Transaction {
-  id        Int      @id @default(autoincrement())
-  accountId Int
-  type      String // "dépôt" ou "retrait"
-  amount    Float
-  date      DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  Account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  id                      Int      @id @default(autoincrement())
+  accountId               Int
+  type                    String
+  amount                  Float
+  date                    DateTime @default(now())
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  balanceAfterTransaction Float? // Vérifiez que ce champ est bien présent
+  Account                 Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 model LoginHistory {

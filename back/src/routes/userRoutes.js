@@ -17,6 +17,7 @@ const {
 } = require("../controllers/userController");
 
 const sessionMiddleware = require("../middlewares/sessionMiddleware");
+const validationMiddlware =require("../middlewares/validation");
 
 const router = express.Router();
 
