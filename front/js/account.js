@@ -201,6 +201,7 @@ class Account {
 
             // A success message is displayed.
             this.showAlert('success', 'Transaction effectuée avec succès');
+            console.log("new transaction response " + JSON.stringify(response));
             if (response.notificationMessage) {
                 this.showAlert('danger', response.notificationMessage);
             }
