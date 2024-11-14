@@ -139,16 +139,17 @@ class Account {
         $('#noTransactions').hide();
 
         transactions.forEach(transaction => {
+            console.log("transaction type : " + transaction.type);
             const row = `
                 <tr>
                     <td>${this.formatDate(transaction.date)}</td>
                     <td>
-                        <span class="badge ${transaction.type === 'deposit' ? 'bg-success' : 'bg-danger'}">
-                            ${transaction.type === 'deposit' ? 'Dépôt' : 'Retrait'}
+                        <span class="badge ${transaction.type === 'dépôt' ? 'bg-success' : 'bg-danger'}">
+                            ${transaction.type === 'dépôt' ? 'Dépôt' : 'Retrait'}
                         </span>
                     </td>
-                    <td class="text-${transaction.type === 'deposit' ? 'success' : 'danger'}">
-                        ${transaction.type === 'deposit' ? '+' : '-'}${transaction.amount.toFixed(2)} €
+                    <td class="text-${transaction.type === 'dépôt' ? 'success' : 'danger'}">
+                        ${transaction.type === 'dépôt' ? '+' : '-'}${transaction.amount.toFixed(2)} €
                     </td>
                     
                     <td>${transaction.balance} €</td>
@@ -180,6 +181,7 @@ class Account {
         const form = $('#newTransactionForm');
         const type = form.find('[name="type"]').val();
         const amount = parseFloat(form.find('[name="amount"]').val());
+        console.log("type : " + type);
 
         try {
             await $.ajax({
