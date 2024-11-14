@@ -32,6 +32,6 @@ $(document).ready(function () {
     });
 });
 
-$('button[type="submit"]').click(function (e) {
-    console.log('Submit button clicked');
-});
+// $('button[type="submit"]').click(function (e) {
+//     console.log('Submit button clicked');
+// });
