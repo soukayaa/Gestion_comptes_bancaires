@@ -1,6 +1,7 @@
 // app.js
 const express = require("express");
 const path = require("path");
+const session = require("express-session");
 const app = express();
 const userRoutes = require("./back/src/routes/userRoutes");
 
@@ -8,11 +9,55 @@ const userRoutes = require("./back/src/routes/userRoutes");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const generateSecret = () => {
+    return require('crypto').randomBytes(64).toString('hex');
+};
+
+app.use(session({
+    secret: generateSecret(),
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 10 * 60 * 1000
+    }
+}));
+
 // Static file configuration
 app.use("/front", express.static(path.join(__dirname, "front")));
 
 // Setting the view path
 app.set("views", path.join(__dirname, "front/pages"));
+
+const authenticateMiddleware = (req, res, next) => {
+
+    const publicRoutes = ['/login', '/register', '/api/login', '/api/signup'];
+
+    console.log('Current path:', req.path);
+    console.log('Session:', req.session);
+
+    if (publicRoutes.includes(req.path)) {
+        return next();
+    }
+
+    // check session
+    if (!req.session || !req.session.userId) {
+        // The API request returns a 401 status code.
+        if (req.path.startsWith('/api/')) {
+            return res.status(401).json({
+                success: false,
+                message: 'Session expirée, veuillez vous reconnecter'
+            });
+        }
+        // Page request redirected to login page
+        return res.redirect('/login');
+    }
+
+    next();
+};
+
+app.use(authenticateMiddleware);
 
 // Page Routing
 app.get("/", (req, res) => {
@@ -20,6 +65,9 @@ app.get("/", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
+    if (req.session && req.session.userId) {
+        return res.redirect('/dashboard');
+    }
     res.sendFile(path.join(__dirname, "front/pages/login.html"));
 });
 
@@ -41,10 +89,6 @@ app.get("/profile", (req, res) => {
 
 // API Routing
 app.use("/api", userRoutes);
-
-app.get("/api/accounts", (req, res) => {
-    // Logic to handle getting the list of accounts
-});
 
 // error handling
 app.use((req, res, next) => {

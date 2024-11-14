@@ -69,11 +69,10 @@ class Dashboard {
 
     createAccountCard(account) {
         return `
-            <div class="col-md-6 col-lg-4 mb-3">
+            <div class="col-md-6 col-lg-6 mb-3">
                 <div class="card h-100 account-card" data-account-id="${account.id}">
                     <div class="card-body">
                         <h5 class="card-title">${account.name}</h5>
-                        <p class="card-text text-muted">${account.type}</p>
                         <h6 class="card-subtitle mb-2">
                             Solde: <span class="text-primary">${account.balance.toFixed(2)} €</span>
                         </h6>
@@ -111,10 +110,5 @@ class Dashboard {
 
 // initialize dashboard
 $(document).ready(() => {
-    // $("#navbarContainer").load("../components/navbar.html", function () {
-    //     
-    //     window.navbar = new Navbar();
-    // });
-
     new Dashboard();
 });

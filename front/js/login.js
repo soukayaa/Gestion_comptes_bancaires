@@ -24,12 +24,8 @@ $(document).ready(function () {
                 window.location.href = '/dashboard';
             },
             error: function (xhr) {
-                console.log('Login error:', {
-                    status: status,
-                    error: error,
-                    response: xhr.responseText
-                });
-                const errorMessage = xhr.responseJSON?.message || 'Une erreur est survenue';
+                console.log("Login error:" + xhr.responseJSON.error);
+                const errorMessage = xhr.responseJSON?.error || 'Une erreur est survenue';
                 $('#errorAlert').text(errorMessage).show();
             }
         });
