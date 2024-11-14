@@ -35,7 +35,7 @@
                         <li class="nav-item">
                             <a class="nav-link" href="/profile" data-nav="profile">Profil</a>
                         </li>
-                         
+
                     </ul>
                     <button id="logoutBtn" class="btn btn-light">Déconnexion</button>
                 </div>
@@ -43,22 +43,19 @@
         </nav>
     </div>
 
+    <div id="showAlert">
+
+    </div>
+
     <div class="container mt-4">
         <!-- Add back button -->
         <div class="row mb-3">
-            <div class="col-12">
+            <div class="col-md-8">
                 <a href="/dashboard" class="btn btn-outline-primary">
                     <i class="fas fa-arrow-left"></i> Retour au tableau de bord
                 </a>
             </div>
-        </div>
 
-        <!-- account information -->
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <h3 id="accountName">...</h3>
-                <p class="text-muted" id="accountType">...</p>
-            </div>
             <div class="col-md-4 text-md-end">
                 <h4>Solde: <span id="accountBalance" class="text-primary">...</span> €</h4>
             </div>
@@ -165,8 +162,8 @@
                         <div class="mb-3">
                             <label class="form-label">Type</label>
                             <select class="form-select" name="type" required>
-                                <option value="deposit">Dépôt</option>
-                                <option value="withdrawal">Retrait</option>
+                                <option value="dépôt">Dépôt</option>
+                                <option value="retrait">Retrait</option>
                             </select>
                         </div>
                         <div class="mb-3">

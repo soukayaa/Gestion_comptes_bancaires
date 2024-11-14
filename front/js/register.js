@@ -42,7 +42,7 @@ $(document).ready(function () {
                 }, 2000);
             },
             error: function (xhr) {
-                const errorMessage = xhr.responseJSON?.message || 'Une erreur est survenue';
+                const errorMessage = xhr.responseJSON?.error || 'Une erreur est survenue';
                 $('#errorAlert').text(errorMessage).show();
                 $('#successAlert').hide();
             }
