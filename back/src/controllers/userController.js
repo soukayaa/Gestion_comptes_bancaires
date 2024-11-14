@@ -5,7 +5,7 @@ const { createObjectCsvStringifier } = require("csv-writer");
 
 const prisma = new PrismaClient();
 
- 
+
 async function signup(req, res) {
   const { name, email, password } = req.body;
 
@@ -452,7 +452,8 @@ async function downloadTransactionHistory(req, res) {
         date: true,
         type: true,
         amount: true,
-        Account: { select: { balance: true } },
+        balanceAfterTransaction: true,
+        // Account: { select: { balance: true } },
       },
       orderBy: {
         date: "desc",
@@ -470,7 +471,7 @@ async function downloadTransactionHistory(req, res) {
         { id: "date", title: "Date" },
         { id: "type", title: "Type" },
         { id: "amount", title: "Montant" },
-        { id: "balance", title: "Solde" },
+        { id: "balanceAfterTransaction", title: "Solde" },
       ],
     });
 
@@ -478,7 +479,8 @@ async function downloadTransactionHistory(req, res) {
       date: transaction.date.toISOString(),
       type: transaction.type,
       amount: transaction.amount,
-      balance: transaction.Account.balance,
+      balanceAfterTransaction: transaction.balanceAfterTransaction,
+      // balance: transaction.Account.balance,
     }));
 
     const csv =

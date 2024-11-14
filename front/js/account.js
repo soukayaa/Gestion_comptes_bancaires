@@ -71,7 +71,7 @@ class Account {
                 throw new Error('Format de données invalide pour les transactions');
             }
 
-            this.filterTransactions(); // Apply initial filter
+            // this.filterTransactions(); // Apply initial filter
         } catch (error) {
 
             console.error('Erreur lors du chargement des données:', error);
@@ -111,6 +111,8 @@ class Account {
             endDate = today;
         }
 
+        console.log("start date : " + startDate + " end date " + endDate);
+
         if (startDate && endDate) {
             filteredTransactions = filteredTransactions.filter(t => {
                 const transactionDate = new Date(t.date);
@@ -135,11 +137,13 @@ class Account {
             return;
         }
 
+        console.log("renderTransactions with " + transactions.length + " transactions");
+
         $('#transactionsList').show();
         $('#noTransactions').hide();
 
         transactions.forEach(transaction => {
-            console.log("transaction type : " + transaction.type);
+            console.log("transaction type: " + JSON.stringify(transaction));
             const row = `
                 <tr>
                     <td>${this.formatDate(transaction.date)}</td>
@@ -152,10 +156,9 @@ class Account {
                         ${transaction.type === 'dépôt' ? '+' : '-'}${transaction.amount.toFixed(2)} €
                     </td>
                     
-                    <td>${transaction.balance} €</td>
+                    <td>${transaction.balanceAfterTransaction} €</td>
                 </tr>
             `;
-            // <td>${transaction.balance.toFixed(2)} €</td>
             tbody.append(row);
         });
     }
@@ -181,10 +184,10 @@ class Account {
         const form = $('#newTransactionForm');
         const type = form.find('[name="type"]').val();
         const amount = parseFloat(form.find('[name="amount"]').val());
-        console.log("type : " + type);
+        console.log("handle New Transaction type: " + type + " amount : " + amount);
 
         try {
-            await $.ajax({
+            const response = await $.ajax({
                 url: `/api/accounts/${this.accountId}/transactions`,
                 method: 'POST',
                 contentType: 'application/json',
@@ -198,6 +201,9 @@ class Account {
 
             // A success message is displayed.
             this.showAlert('success', 'Transaction effectuée avec succès');
+            if (response.notificationMessage) {
+                this.showAlert('danger', response.notificationMessage);
+            }
         } catch (error) {
             console.error('Error creating transaction:', error);
             this.showAlert('danger', error.responseJSON?.error || 'Erreur lors de la transaction');
