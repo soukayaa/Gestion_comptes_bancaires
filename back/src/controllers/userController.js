@@ -103,23 +103,24 @@ async function getTransactions(req, res) {
   const accountId = req.params.accountId;
 
   if (!userId) {
-    return res.status(401).json({ error: "Veuillez vous connecter pour voir les transactions" });
+    return res
+      .status(401)
+      .json({ error: "Veuillez vous connecter pour voir les transactions" });
   }
 
   try {
     const accountIdInt = parseInt(accountId, 10);
 
-    // Récupérer le solde actuel du compte
     const account = await prisma.account.findFirst({
       where: { id: accountIdInt, userId: userId },
-      select: { id: true, balance: true }, // Sélection du solde du compte
+      select: { id: true, balance: true }, // Sélectionner le solde initial du compte
     });
 
     if (!account) {
       return res.status(404).json({ error: "Compte non trouvé" });
     }
 
-    // Récupérer toutes les transactions par ordre chronologique
+    // Récupérer les transactions et les trier par date croissante
     const transactions = await prisma.transaction.findMany({
       where: { accountId: accountIdInt },
       select: {
@@ -128,28 +129,48 @@ async function getTransactions(req, res) {
         amount: true,
         date: true,
       },
-      orderBy: { date: 'asc' },
+      orderBy: {
+        date: "asc", // Trier par date croissante (plus ancienne d'abord)
+      },
     });
 
-    // Initialiser le solde en partant du solde actuel et calculer à rebours
-    let runningBalance = account.balance;
-    const transactionsWithBalance = transactions.reverse().map((transaction) => {
-      // Calculer le solde pour chaque transaction en remontant
-      runningBalance = transaction.type === 'dépôt' 
-        ? runningBalance - transaction.amount 
-        : runningBalance + transaction.amount;
+    if (transactions.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Aucune transaction trouvée pour ce compte" });
+    }
 
-      // Ajouter le solde mis à jour pour chaque transaction
+    // Calcul progressif du solde à partir du solde initial
+    let currentBalance = account.balance;  // Le solde initial du compte
+    const updatedTransactions = transactions.map((transaction, index) => {
+      // Mettre à jour le solde en fonction du type de transaction
+      if (transaction.type === "dépôt") {
+        currentBalance += transaction.amount;  // Ajouter pour un dépôt
+      } else if (transaction.type === "retrait") {
+        currentBalance -= transaction.amount;  // Soustraire pour un retrait
+      }
+
+      // Pour la dernière transaction, afficher le solde actuel final
+      if (index === transactions.length - 1) {
+        return {
+          ...transaction,
+          balance: currentBalance, // Solde final après toutes les transactions
+        };
+      }
+
+      // Pour les autres transactions, afficher leur propre solde progressif
       return {
         ...transaction,
-        balance: runningBalance,
+        balance: currentBalance, // Solde après cette transaction
       };
-    }).reverse(); // Revenir à l'ordre chronologique d'origine
+    });
 
-    // Répondre avec le solde actuel et les transactions incluant le solde après chaque transaction
+    // Renverser l'ordre des transactions pour que la dernière transaction apparaisse en premier
+    updatedTransactions.reverse();
+
     res.status(200).json({
-      balance: account.balance, // Solde actuel du compte
-      transactions: transactionsWithBalance,
+      balance: currentBalance, // Solde final après toutes les transactions
+      transactions: updatedTransactions, // Transactions avec le solde mis à jour
     });
   } catch (error) {
     console.error(error);
@@ -158,6 +179,9 @@ async function getTransactions(req, res) {
     });
   }
 }
+
+
+
 
 
 // Fonction pour ajouter un compte bancaire
