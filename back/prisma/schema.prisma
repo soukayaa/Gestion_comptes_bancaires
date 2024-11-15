@@ -49,8 +49,9 @@ model Transaction {
 model LoginHistory {
   id        Int      @id @default(autoincrement())
   userId    Int
-  loginDate DateTime @default(now())
   ipAddress String
+  location  String?   // Emplacement approximatif, peut être null
+  date      DateTime @default(now())
 
-  User User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  User      User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -45,19 +45,25 @@ async function login(req, res) {
       return res.status(400).json({ error: "Invalid email or password" });
     }
 
-    // Store user information in session
+    // Enregistrer l'historique de connexion
+    const { login, isSuspicious } = await recordLogin(req, user.id);
+
+    // Stocker les informations utilisateur dans la session
     req.session.userId = user.id;
     req.session.userEmail = user.email;
 
     res.status(200).json({
       message: "Login successful",
       user: { id: user.id, email: user.email },
+      isSuspicious: isSuspicious ? "Suspicious login detected" : null,
+      lastLogin: login,
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "An error occurred during login" });
   }
 }
+
 
 // Logout function
 function logout(req, res) {
@@ -649,6 +655,115 @@ async function deleteBankAccount(req, res) {
     });
   }
 }
+const geoip = require('geoip-lite'); // Pour détecter l'emplacement
+async function getLoginHistory(req, res) {
+  const userId = req.session.userId;
+
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ error: "Veuillez vous connecter pour voir l'historique des connexions" });
+  }
+
+  try {
+    const loginHistory = await prisma.loginHistory.findMany({
+      where: { userId },
+      orderBy: { date: 'desc' }, // Trier par date décroissante
+      select: {
+        ipAddress: true,
+        location: true,
+        date: true,
+      },
+    });
+
+    if (loginHistory.length === 0) {
+      return res.status(200).json({ message: "Aucune connexion enregistrée." });
+    }
+
+    res.status(200).json({ loginHistory });
+  } catch (error) {
+    console.error("Erreur lors de la récupération de l'historique des connexions :", error);
+    res.status(500).json({ error: "Une erreur est survenue" });
+  }
+}
+
+async function recordLogin(req, userId) {
+  const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const geo = geoip.lookup(ipAddress) || {};
+
+  // Enregistrer l'historique de connexion
+  const login = await prisma.loginHistory.create({
+    data: {
+      userId: userId,
+      ipAddress: ipAddress || "Unknown",
+      location: geo.city || "Unknown",
+    },
+  });
+
+  // Détecter les connexions suspectes
+  await detectSuspiciousLogin(userId, ipAddress, geo.city || "Unknown");
+
+  return login;
+}
+
+async function detectSuspiciousLogin(userId, ipAddress, location) {
+  const previousLogin = await prisma.loginHistory.findFirst({
+    where: { userId },
+    orderBy: { date: 'desc' },
+  });
+
+  if (previousLogin && previousLogin.location !== location) {
+    console.log(
+      `Alerte : Connexion suspecte détectée pour l'utilisateur ${userId} depuis ${location}`
+    );
+
+    // Vous pouvez implémenter une notification par email ou tout autre système ici.
+    // Exemple : envoyer un email ou une notification à l'utilisateur
+    // await sendAlertToUser(userId, location, ipAddress);
+
+    return true; // Connexion suspecte détectée
+  }
+
+  return false; // Pas de connexion suspecte
+}
+ 
+
+async function recordLogin(req, userId) {
+  // Récupérer l'adresse IP réelle
+  const ipAddress =
+    req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress || "Unknown";
+
+  // Vérifier si l'adresse IP est locale et la traiter
+  const sanitizedIp = ipAddress === "::1" ? "127.0.0.1" : ipAddress;
+
+  // Utiliser geoip-lite pour obtenir la localisation
+  const geo = geoip.lookup(sanitizedIp) || {};
+  console.log("IP Address:", sanitizedIp); // Log l'adresse IP
+  console.log("Geo Data:", geo); // Log les données de géolocalisation
+
+  const location = geo.city || "Unknown";
+
+  // Enregistrer l'historique de connexion
+  const login = await prisma.loginHistory.create({
+    data: {
+      userId: userId,
+      ipAddress: sanitizedIp,
+      location: location,
+    },
+  });
+
+  // Détecter les connexions suspectes
+  const isSuspicious = await detectSuspiciousLogin(userId, sanitizedIp, location);
+
+  return { login, isSuspicious };
+}
+
+
+
+
+
+
+
 
 module.exports = {
   signup,
@@ -665,4 +780,7 @@ module.exports = {
   getUserProfile,
   updateUserProfile,
   deleteBankAccount,
+  recordLogin,
+  getLoginHistory,
+  detectSuspiciousLogin,
 };
