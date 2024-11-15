@@ -202,8 +202,8 @@ class Account {
             // A success message is displayed.
             this.showAlert('success', 'Transaction effectuée avec succès');
             console.log("new transaction response " + JSON.stringify(response));
-            if (response.notificationMessage) {
-                this.showAlert('danger', response.notificationMessage);
+            if (response.notification) {
+                this.showAlert('danger', response.notification);
             }
         } catch (error) {
             console.error('Error creating transaction:', error);
@@ -261,6 +261,8 @@ class Account {
         if (threshold === null) return;
 
         const amount = parseFloat(threshold);
+        console.log("amount entered : " + amount);
+        console.log("send data : " + JSON.stringify({ threshold: amount }));
         if (isNaN(amount) || amount < 0) {
             this.showAlert('danger', 'Veuillez entrer un montant valide');
             return;

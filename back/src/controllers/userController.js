@@ -246,10 +246,12 @@ async function addTransaction(req, res) {
 
     // Créer une notification si le solde est en dessous du seuil
     let notificationMessage = null;
+    console.log("low balance threshold : " + account.lowBalanceThreshold);
     if (
       account.lowBalanceThreshold !== null &&
       newBalance < account.lowBalanceThreshold
     ) {
+      console.log("Attention: le solde de votre compte est en dessous du seuil");
       notificationMessage = `Attention: le solde de votre compte est en dessous du seuil de ${account.lowBalanceThreshold}`;
     }
 
@@ -389,7 +391,11 @@ async function getTotalBalance(req, res) {
 async function updateThreshold(req, res) {
   const userId = req.session.userId;
   const accountId = parseInt(req.params.accountId, 10); // Récupère l'ID du compte depuis les paramètres de l'URL
-  const { lowBalanceThreshold } = req.body;
+  // const { lowBalanceThreshold } = req.body;
+  const lowBalanceThreshold = req.body.threshold;
+
+  console.log("lowBalanceThreshold : " + lowBalanceThreshold);
+  console.log("lowBalanceThreshold.threshold : " + req.body.threshold);
 
   if (!userId) {
     return res.status(401).json({
@@ -407,11 +413,16 @@ async function updateThreshold(req, res) {
       return res.status(404).json({ error: "Compte non trouvé" });
     }
 
+    console.log("before update threshold : " + account.lowBalanceThreshold);
+    console.log("new threshold : " + lowBalanceThreshold);
+
     // Mettre à jour le seuil de solde bas pour ce compte
     await prisma.account.update({
       where: { id: accountId },
       data: { lowBalanceThreshold },
     });
+
+    console.log("after update threshold : " + account.lowBalanceThreshold);
 
     res
       .status(200)
