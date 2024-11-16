@@ -1,28 +1,16 @@
-// app.js
 const express = require("express");
 const path = require("path");
-const session = require("express-session");
 const app = express();
+
+// Import middleware
+const sessionMiddleware = require("./back/src/middlewares/sessionMiddleware");
+const { authenticateMiddleware } = require("./back/src/middlewares/authMiddleware");
 const userRoutes = require("./back/src/routes/userRoutes");
 
 // Middleware Configuration
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-const generateSecret = () => {
-    return require('crypto').randomBytes(64).toString('hex');
-};
-
-app.use(session({
-    secret: generateSecret(),
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 30 * 60 * 1000
-    }
-}));
+app.use(sessionMiddleware);
 
 // Static file configuration
 app.use("/front", express.static(path.join(__dirname, "front")));
@@ -30,33 +18,7 @@ app.use("/front", express.static(path.join(__dirname, "front")));
 // Setting the view path
 app.set("views", path.join(__dirname, "front/pages"));
 
-const authenticateMiddleware = (req, res, next) => {
-
-    const publicRoutes = ['/login', '/register', '/api/login', '/api/signup'];
-
-    console.log('Current path:', req.path);
-    console.log('Session:', req.session);
-
-    if (publicRoutes.includes(req.path)) {
-        return next();
-    }
-
-    // check session
-    if (!req.session || !req.session.userId) {
-        // The API request returns a 401 status code.
-        if (req.path.startsWith('/api/')) {
-            return res.status(401).json({
-                success: false,
-                message: 'Session expirée, veuillez vous reconnecter'
-            });
-        }
-        // Page request redirected to login page
-        return res.redirect('/login');
-    }
-
-    next();
-};
-
+// Apply authentication middleware to all routes except public ones
 app.use(authenticateMiddleware);
 
 // Page Routing
@@ -90,7 +52,7 @@ app.get("/profile", (req, res) => {
 // API Routing
 app.use("/api", userRoutes);
 
-// error handling
+// Error handling
 app.use((req, res, next) => {
     res.status(404).send("Page not found");
 });

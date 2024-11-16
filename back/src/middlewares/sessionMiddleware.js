@@ -1,11 +1,19 @@
-// middlewares/sessionMiddleware.js
 const session = require("express-session");
+const crypto = require('crypto');
+
+const generateSecret = () => {
+  return crypto.randomBytes(64).toString('hex');
+};
 
 const sessionMiddleware = session({
-  secret: "your_session_secret_key",
+  secret: generateSecret(),
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // Use true in production with HTTPS
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 30 * 60 * 1000 // 30 minutes
+  }
 });
 
 module.exports = sessionMiddleware;
