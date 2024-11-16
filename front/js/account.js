@@ -1,9 +1,20 @@
 class Account {
     constructor() {
         this.accountId = window.location.pathname.split('/').pop();
-        this.transactions = []; // Store all transaction records
+        this.initializeDateInputs();
         this.initializeEventListeners();
-        this.loadAccountData();
+        this.loadInitialData();
+    }
+
+    initializeDateInputs() {
+        const today = new Date();
+        const formattedDate = today.toISOString().split('T')[0];
+        $('#endDate').val(formattedDate);
+        $('#startDate').attr('max', formattedDate);
+        const startDate = $('#startDate').val();
+        if (startDate) {
+            $('#endDate').attr('min', startDate);
+        }
     }
 
     initializeEventListeners() {
@@ -11,10 +22,11 @@ class Account {
         $('#newTransactionBtn').click(() => $('#newTransactionModal').modal('show'));
         $('#newTransactionForm').on('submit', (e) => this.handleNewTransaction(e));
 
-        // interval filtering
-        $('#typeFilter').on('change', () => this.filterTransactions());
+        // Filtering events
+        $('#typeFilter').on('change', () => this.fetchFilteredTransactions());
         $('#periodFilter').on('change', () => this.handlePeriodChange());
-        $('#startDate, #endDate').on('change', () => this.filterTransactions());
+        $('#startDate').on('change', (e) => this.handleStartDateChange(e));
+        $('#endDate').on('change', (e) => this.handleEndDateChange(e));
 
         // Download history
         $('#downloadHistoryBtn').click(() => this.downloadHistory());
@@ -22,161 +34,88 @@ class Account {
         // Delete account
         $('#deleteAccountBtn').click(() => this.handleDeleteAccount());
 
-        // set an alarm
+        // Set alert
         $('#setAlertBtn').click(() => this.handleSetAlert());
+    }
+
+    async loadInitialData() {
+        try {
+            console.log('Chargement des données initiales...');
+            const response = await $.ajax({
+                url: `/api/accounts/${this.accountId}/transactions`,
+                method: 'GET',
+                error: (xhr) => this.handleApiError(xhr)
+            });
+
+            if (response) {
+                this.balance = response.balance || 0;
+                $('#accountBalance').text(this.balance.toFixed(2));
+
+                if (Array.isArray(response.transactions)) {
+                    this.renderTransactions(response.transactions);
+                } else {
+                    throw new Error('Format de données invalide pour les transactions');
+                }
+            }
+        } catch (error) {
+            this.handleError('Chargement des données', error);
+        }
+    }
+
+    handleStartDateChange(e) {
+        const startDate = e.target.value;
+        const endDate = $('#endDate').val();
+        $('#endDate').attr('min', startDate);
+        if (endDate && endDate < startDate) {
+            $('#endDate').val(startDate);
+            this.showAlert('warning', 'La date de fin a été ajustée pour être égale à la date de début');
+        }
+        this.fetchFilteredTransactions();
+    }
+
+    handleEndDateChange(e) {
+        const endDate = e.target.value;
+        const startDate = $('#startDate').val();
+        $('#startDate').attr('max', endDate);
+        if (startDate && startDate > endDate) {
+            $('#startDate').val(endDate);
+            this.showAlert('warning', 'La date de début a été ajustée pour être égale à la date de fin');
+        }
+        this.fetchFilteredTransactions();
     }
 
     handlePeriodChange() {
         const period = $('#periodFilter').val();
         if (period === 'custom') {
             $('#customDateRange').show();
+            if (!$('#startDate').val() && $('#endDate').val()) {
+                const endDate = new Date($('#endDate').val());
+                const startDate = new Date(endDate);
+                startDate.setDate(startDate.getDate() - 30);
+                const formattedStartDate = startDate.toISOString().split('T')[0];
+                $('#startDate').val(formattedStartDate);
+                $('#endDate').attr('min', formattedStartDate);
+            }
         } else {
             $('#customDateRange').hide();
         }
-        this.filterTransactions();
+        this.fetchFilteredTransactions();
     }
 
-    async loadAccountData() {
+    async updateAccountBalance() {
         try {
-
-            // Chargement des transactions 
-            console.log('Chargement des transactions...');
             const response = await $.ajax({
                 url: `/api/accounts/${this.accountId}/transactions`,
                 method: 'GET',
-                error: (xhr, status, error) => {
-                    if (xhr.status === 401) {
-                        console.log('Session expirée ou non autorisé, redirection vers la page de connexion');
-                        window.location.href = '/login';
-                    }
-                }
+                error: (xhr) => this.handleApiError(xhr)
             });
 
-
-            console.log("response : " + response + "success : " + response.success);
-
-            if (!response) {
-                throw new Error(response.message || 'Erreur lors du chargement des transactions');
+            if (response && response.balance !== undefined) {
+                $('#accountBalance').text(response.balance.toFixed(2));
             }
-
-            $('#accountBalance').text((response.balance || 0).toFixed(2));
-            console.log('Transactions reçues:', response.transactions);
-
-            if (Array.isArray(response.transactions)) {
-                this.transactions = response.transactions;
-                console.log(`${this.transactions.length} transactions chargées`);
-                this.filterTransactions();
-            } else {
-                console.error('Format de transactions invalide:', response.transactions);
-                throw new Error('Format de données invalide pour les transactions');
-            }
-
-            // this.filterTransactions(); // Apply initial filter
         } catch (error) {
-
-            console.error('Erreur lors du chargement des données:', error);
-            this.showAlert('danger',
-                `Erreur lors du chargement des données: ${error.message || 'Erreur inconnue'}`
-            );
-
-            // Réinitialiser les données en cas d'erreur
-            this.transactions = [];
-            this.filterTransactions();
-        } finally {
-            $('#loadingIndicator')?.hide();
+            console.error('Erreur lors de la mise à jour du solde:', error);
         }
-    }
-
-    filterTransactions() {
-        let filteredTransactions = [...this.transactions];
-
-        // Filter by type
-        const typeFilter = $('#typeFilter').val();
-        if (typeFilter !== 'all') {
-            filteredTransactions = filteredTransactions.filter(t => t.type === typeFilter);
-        }
-
-        // Filter by date
-        const periodFilter = $('#periodFilter').val();
-        const today = new Date();
-        let startDate, endDate;
-
-        if (periodFilter === 'custom') {
-            startDate = new Date($('#startDate').val());
-            endDate = new Date($('#endDate').val());
-            endDate.setHours(23, 59, 59); // Set to end day
-        } else if (periodFilter !== 'all') {
-            startDate = new Date();
-            startDate.setDate(today.getDate() - parseInt(periodFilter));
-            endDate = today;
-        }
-
-        console.log("start date : " + startDate + " end date " + endDate);
-
-        if (startDate && endDate) {
-            filteredTransactions = filteredTransactions.filter(t => {
-                const transactionDate = new Date(t.date);
-                return transactionDate >= startDate && transactionDate <= endDate;
-            });
-        }
-
-        // Sort by date (newest first)
-        filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        // update display
-        this.renderTransactions(filteredTransactions);
-    }
-
-    renderTransactions(transactions) {
-        const tbody = $('#transactionsList');
-        tbody.empty();
-
-        if (transactions.length === 0) {
-            $('#transactionsList').hide();
-            $('#noTransactions').show();
-            return;
-        }
-
-        console.log("renderTransactions with " + transactions.length + " transactions");
-
-        $('#transactionsList').show();
-        $('#noTransactions').hide();
-
-        transactions.forEach(transaction => {
-            console.log("transaction type: " + JSON.stringify(transaction));
-            const row = `
-                <tr>
-                    <td>${this.formatDate(transaction.date)}</td>
-                    <td>
-                        <span class="badge ${transaction.type === 'dépôt' ? 'bg-success' : 'bg-danger'}">
-                            ${transaction.type === 'dépôt' ? 'Dépôt' : 'Retrait'}
-                        </span>
-                    </td>
-                    <td class="text-${transaction.type === 'dépôt' ? 'success' : 'danger'}">
-                        ${transaction.type === 'dépôt' ? '+' : '-'}${transaction.amount.toFixed(2)} €
-                    </td>
-                    
-                    <td>${transaction.balanceAfterTransaction} €</td>
-                </tr>
-            `;
-            tbody.append(row);
-        });
-    }
-
-    formatDate(dateString) {
-        const options = {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        };
-        return new Date(dateString).toLocaleDateString('fr-FR', options);
-    }
-
-    async fetchAccountData() {
-        const response = await $.get(`/api/accounts/${this.accountId}`);
-        return response.account;
     }
 
     async handleNewTransaction(e) {
@@ -184,7 +123,6 @@ class Account {
         const form = $('#newTransactionForm');
         const type = form.find('[name="type"]').val();
         const amount = parseFloat(form.find('[name="amount"]').val());
-        console.log("handle New Transaction type: " + type + " amount : " + amount);
 
         try {
             const response = await $.ajax({
@@ -196,28 +134,32 @@ class Account {
 
             $('#newTransactionModal').modal('hide');
             form[0].reset();
-            // Reload account data and transaction history
-            await this.loadAccountData();
 
-            // A success message is displayed.
+            await this.updateAccountBalance();
+
+            await this.fetchFilteredTransactions();
+
             this.showAlert('success', 'Transaction effectuée avec succès');
-            console.log("new transaction response " + JSON.stringify(response));
+
             if (response.notification) {
-                this.showAlert('danger', response.notification);
+                this.showAlert('warning', response.notification);
             }
         } catch (error) {
-            console.error('Error creating transaction:', error);
-            this.showAlert('danger', error.responseJSON?.error || 'Erreur lors de la transaction');
+            this.handleError('Création de transaction', error);
         }
     }
 
+
     async downloadHistory() {
         try {
-            const response = await $.get(`/api/accounts/${this.accountId}/transactions/download`, {
-                responseType: 'blob'
+            const response = await $.ajax({
+                url: `/api/accounts/${this.accountId}/transactions/download`,
+                method: 'GET',
+                xhrFields: {
+                    responseType: 'blob'
+                }
             });
 
-            // Create download link
             const blob = new Blob([response], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -230,8 +172,7 @@ class Account {
 
             this.showAlert('success', 'Historique téléchargé avec succès');
         } catch (error) {
-            console.error('Error downloading history:', error);
-            this.showAlert('danger', 'Erreur lors du téléchargement');
+            this.handleError('Téléchargement de l\'historique', error);
         }
     }
 
@@ -249,10 +190,9 @@ class Account {
             this.showAlert('success', 'Compte supprimé avec succès');
             setTimeout(() => {
                 window.location.href = '/dashboard';
-            }, 2000);
+            }, 500);
         } catch (error) {
-            console.error('Error deleting account:', error);
-            this.showAlert('danger', 'Erreur lors de la suppression du compte');
+            this.handleError('Suppression du compte', error);
         }
     }
 
@@ -261,8 +201,6 @@ class Account {
         if (threshold === null) return;
 
         const amount = parseFloat(threshold);
-        console.log("amount entered : " + amount);
-        console.log("send data : " + JSON.stringify({ threshold: amount }));
         if (isNaN(amount) || amount < 0) {
             this.showAlert('danger', 'Veuillez entrer un montant valide');
             return;
@@ -278,9 +216,125 @@ class Account {
 
             this.showAlert('success', 'Seuil d\'alerte défini avec succès');
         } catch (error) {
-            console.error('Error setting alert:', error);
-            this.showAlert('danger', 'Erreur lors de la définition du seuil');
+            this.handleError('Définition du seuil', error);
         }
+    }
+
+    async fetchFilteredTransactions() {
+        try {
+            const typeFilter = $('#typeFilter').val();
+            const periodFilter = $('#periodFilter').val();
+
+            if (typeFilter === 'all' && periodFilter === 'all') {
+                return await this.loadInitialData();
+            }
+
+            const params = new URLSearchParams();
+
+            if (typeFilter !== 'all') {
+                params.append('type', typeFilter);
+            }
+
+            if (periodFilter === 'custom') {
+                const startDate = $('#startDate').val();
+                let endDate = $('#endDate').val() || new Date().toISOString().split('T')[0];
+
+                if (startDate && endDate && startDate > endDate) {
+                    this.showAlert('danger', 'La date de début ne peut pas être postérieure à la date de fin');
+                    return;
+                }
+
+                if (endDate) {
+                    const adjustedEndDate = new Date(endDate);
+                    adjustedEndDate.setHours(23, 59, 59, 999);
+                    endDate = adjustedEndDate.toISOString();
+                }
+
+                if (startDate) params.append('startDate', startDate);
+                if (endDate) params.append('endDate', endDate);
+            } else if (periodFilter !== 'all') {
+                params.append('period', periodFilter);
+            }
+
+            const response = await $.ajax({
+                url: `/api/accounts/${this.accountId}/transactions/history?${params.toString()}`,
+                method: 'GET',
+                error: (xhr) => this.handleApiError(xhr)
+            });
+
+            if (response && response.transactions) {
+                this.renderTransactions(response.transactions);
+            } else {
+                $('#transactionsList').hide();
+                $('#noTransactions').show();
+            }
+        } catch (error) {
+            this.handleError('Récupération des transactions', error);
+        }
+    }
+
+    renderTransactions(transactions) {
+        const tbody = $('#transactionsList');
+        tbody.empty();
+
+        if (!transactions || transactions.length === 0) {
+            $('#transactionsList').hide();
+            $('#noTransactions').show();
+            return;
+        }
+
+        $('#transactionsList').show();
+        $('#noTransactions').hide();
+
+        transactions.forEach(transaction => {
+            const balanceDisplay = transaction.balanceAfterTransaction !== undefined
+                && transaction.balanceAfterTransaction !== null
+                ? `${transaction.balanceAfterTransaction.toFixed(2)} €`
+                : '-';
+
+            const row = `
+                <tr>
+                    <td>${this.formatDate(transaction.date)}</td>
+                    <td>
+                        <span class="badge ${transaction.type === 'dépôt' ? 'bg-success' : 'bg-danger'}">
+                            ${transaction.type === 'dépôt' ? 'Dépôt' : 'Retrait'}
+                        </span>
+                    </td>
+                    <td class="text-${transaction.type === 'dépôt' ? 'success' : 'danger'}">
+                        ${transaction.type === 'dépôt' ? '+' : '-'}${transaction.amount.toFixed(2)} €
+                    </td>
+                    <td>${balanceDisplay}</td>
+                </tr>
+            `;
+            tbody.append(row);
+        });
+    }
+
+    formatDate(dateString) {
+        const options = {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
+        return new Date(dateString).toLocaleDateString('fr-FR', options);
+    }
+
+    handleApiError(xhr) {
+        if (xhr.status === 401) {
+            console.log('Session expirée ou non autorisé, redirection vers la page de connexion');
+            window.location.href = '/login';
+        }
+    }
+
+    handleError(operation, error) {
+        console.error(`Erreur lors de ${operation}:`, error);
+        this.showAlert('danger',
+            error.responseJSON?.error ||
+            error.message ||
+            `Erreur lors de ${operation.toLowerCase()}`
+        );
     }
 
     showAlert(type, message) {
@@ -290,9 +344,13 @@ class Account {
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `);
-
-        // Insert a reminder at the top of the page
         $('#showAlert').prepend(alertDiv);
+
+        setTimeout(() => {
+            alertDiv.fadeOut('slow', function () {
+                $(this).remove();
+            });
+        }, 5000);
     }
 }
 

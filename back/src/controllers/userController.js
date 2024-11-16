@@ -130,7 +130,7 @@ async function getTransactions(req, res) {
     // Récupérer les transactions avec le champ `balanceAfterTransaction`
     const transactions = await prisma.transaction.findMany({
       where: { accountId: accountIdInt },
-      orderBy: { date: 'asc' }, // Tri par date croissante
+      orderBy: { date: 'desc' }, // Tri par date décroissante
       select: {
         id: true,
         type: true,
@@ -340,17 +340,12 @@ async function getTransactionHistory(req, res) {
         date: true,
         type: true,
         amount: true,
+        balanceAfterTransaction: true,
       },
       orderBy: {
         date: "desc",
       },
     });
-
-    if (transactions.length === 0) {
-      return res.status(404).json({
-        message: "Aucune transaction trouvée pour les critères spécifiés",
-      });
-    }
 
     res.status(200).json({ transactions });
   } catch (error) {
@@ -726,7 +721,6 @@ async function detectSuspiciousLogin(userId, ipAddress, location) {
 
   return false; // Pas de connexion suspecte
 }
- 
 
 async function recordLogin(req, userId) {
   // Récupérer l'adresse IP réelle

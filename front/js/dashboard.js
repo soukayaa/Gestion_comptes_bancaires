@@ -52,9 +52,9 @@ class Dashboard {
         $('#userName').text(userData.name);
     }
 
-    updateTotalBalance(accounts) {
-        const total = accounts.reduce((sum, account) => sum + account.balance, 0);
-        $('#totalBalance').text(total.toFixed(2));
+    async updateTotalBalance(accounts) {
+        const response = await $.get('/api/total-balance');
+        $('#totalBalance').text(response.totalBalance.toFixed(2));
     }
 
     renderAccounts(accounts) {
