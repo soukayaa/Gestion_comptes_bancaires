@@ -1,0 +1,41 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:latest
+    container_name: banking-db
+    restart: always
+    environment:
+      - POSTGRES_USER=banking_user
+      - POSTGRES_PASSWORD=banking_password
+      - POSTGRES_DB=banking_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U banking_user -d banking_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: banking-app
+    restart: always
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://banking_user:banking_password@db:5432/banking_db?schema=public
+      - NODE_ENV=development
+      - SESSION_SECRET=your-secret-key
+      - NODE_PATH=/usr/src/app/node_modules
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+      - /usr/src/app/back/node_modules
+
+volumes:
+  postgres_data:
