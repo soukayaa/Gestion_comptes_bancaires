@@ -44,6 +44,33 @@ The application will be available at:
 - Web Application: http://localhost:3001
 - Database: localhost:5432 (if you need direct access)
 
+### Available Pages and Features
+
+#### Login Page (`http://localhost:3001/login`)
+- User Story: User Authentication
+
+#### Registration Page (`http://localhost:3001/register`)
+- User Story: User Account Creation
+
+#### Dashboard Page (`http://localhost:3001/dashboard`)
+- User Stories Implemented:
+  * Bank Account Visualization
+  * Bank Account Creation
+  * Total Balance Calculation and Display
+
+#### Account Details Page (`http://localhost:3001/account/:accountId`)
+- User Stories Implemented:
+  * Transaction Management
+  * Transaction History Consultation
+  * Low Balance Alert Management
+  * Transaction History Download
+  * Bank Account Deletion
+
+#### Profile Page (`http://localhost:3001/profile`)
+- User Stories Implemented:
+  * User Profile and Personal Information Management
+  * Login History and Security
+
 ### Making Changes
 
 1. Stop the application:
